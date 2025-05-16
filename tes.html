@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Dashboard - ThingSpeak</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .settings {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>IoT Dashboard</h1>
+        
+        <div class="settings">
+            <input type="text" id="channelId" placeholder="Enter Channel ID">
+            <input type="text" id="readApiKey" placeholder="Enter Read API Key">
+            <button onclick="initializeChannel()">Connect to Channel</button>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="iotChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let chart;
+        
+        function initializeChannel() {
+            const channelId = document.getElementById('channelId').value;
+            const readApiKey = document.getElementById('readApiKey').value;
+            
+            if (!channelId || !readApiKey) {
+                alert('Please enter both Channel ID and Read API Key');
+                return;
+            }
+
+            // Initialize chart
+            const ctx = document.getElementById('iotChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Sensor Data',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Start fetching data
+            fetchThingSpeakData(channelId, readApiKey);
+            // Update every 15 seconds
+            setInterval(() => fetchThingSpeakData(channelId, readApiKey), 15000);
+        }
+
+        function fetchThingSpeakData(channelId, readApiKey) {
+            const url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?api_key=${readApiKey}&results=10`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const feeds = data.feeds;
+                    const labels = feeds.map(feed => new Date(feed.created_at).toLocaleTimeString());
+                    const values = feeds.map(feed => feed.field1);
+
+                    // Update chart
+                    chart.data.labels = labels;
+                    chart.data.datasets[0].data = values;
+                    chart.update();
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    alert('Error fetching data from ThingSpeak');
+                });
+        }
+    </script>
+</body>
+</html>
